@@ -945,7 +945,7 @@ async def prover_search_credentials_for_proof_req(wallet_handle: int,
         {
             "name": string,
             "version": string,
-            "nonce": string,
+            "nonce": string,  // Big number as string
             "requested_attributes": { // set of requested attributes
                  "<attr_referent>": <attr_info>, // see below
                  ...,
