@@ -6,17 +6,20 @@ use errors::prelude::*;
 use services::ledger::merkletree::merkletree::MerkleTree;
 use services::pool::{PoolService, types::*};
 
-pub const REQUESTS_FOR_STATE_PROOFS: [&'static str; 7] = [
+pub const REQUESTS_FOR_STATE_PROOFS: [&str; 10] = [
     constants::GET_NYM,
+    constants::GET_TXN_AUTHR_AGRMT,
+    constants::GET_TXN_AUTHR_AGRMT_AML,
     constants::GET_SCHEMA,
     constants::GET_CRED_DEF,
     constants::GET_ATTR,
     constants::GET_REVOC_REG,
     constants::GET_REVOC_REG_DEF,
     constants::GET_REVOC_REG_DELTA,
+    constants::GET_AUTH_RULE,
 ];
 
-const REQUEST_FOR_FULL: [&'static str; 2] = [
+const REQUEST_FOR_FULL: [&str; 2] = [
     constants::POOL_RESTART,
     constants::GET_VALIDATOR_INFO,
 ];
@@ -115,6 +118,7 @@ pub enum RequestEvent {
     CustomSingleRequest(
         String, // message
         String, // req_id
+        Option<Vec<u8>>, // expected key for State Proof in Reply
     ),
     CustomConsensusRequest(
         String, // message
@@ -162,14 +166,14 @@ pub enum RequestEvent {
 
 impl RequestEvent {
     pub fn get_req_id(&self) -> String {
-        match self {
-            &RequestEvent::CustomSingleRequest(_, ref id) => id.to_string(),
-            &RequestEvent::CustomConsensusRequest(_, ref id) => id.to_string(),
-            &RequestEvent::CustomFullRequest(_, ref id, _, _) => id.to_string(),
-            &RequestEvent::Reply(_, _, _, ref id) => id.to_string(),
-            &RequestEvent::ReqACK(_, _, _, ref id) => id.to_string(),
-            &RequestEvent::ReqNACK(_, _, _, ref id) => id.to_string(),
-            &RequestEvent::Reject(_, _, _, ref id) => id.to_string(),
+        match *self {
+            RequestEvent::CustomSingleRequest(_, ref id, _) => id.to_string(),
+            RequestEvent::CustomConsensusRequest(_, ref id) => id.to_string(),
+            RequestEvent::CustomFullRequest(_, ref id, _, _) => id.to_string(),
+            RequestEvent::Reply(_, _, _, ref id) => id.to_string(),
+            RequestEvent::ReqACK(_, _, _, ref id) => id.to_string(),
+            RequestEvent::ReqNACK(_, _, _, ref id) => id.to_string(),
+            RequestEvent::Reject(_, _, _, ref id) => id.to_string(),
             _ => "".to_string()
         }
     }
@@ -217,9 +221,13 @@ impl Into<Option<RequestEvent>> for PoolEvent {
                         error!("Timeout {:?} or nodes {:?} is specified for non-supported request operation type {}",
                                timeout, nodes, op);
                         None
-                    } else if REQUESTS_FOR_STATE_PROOFS.contains(&op.as_str())
-                        || PoolService::get_sp_parser(&op.as_str()).is_some() {
-                        Some(RequestEvent::CustomSingleRequest(msg, req_id.clone()))
+                    } else if REQUESTS_FOR_STATE_PROOFS.contains(&op.as_str()) {
+                        let key = _get_req_json(&msg).ok()
+                            .and_then(|req_json|
+                                super::state_proof::parse_key_from_request_for_builtin_sp(&req_json));
+                        Some(RequestEvent::CustomSingleRequest(msg, req_id.clone(), key))
+                    } else if PoolService::get_sp_parser(&op.as_str()).is_some() {
+                        Some(RequestEvent::CustomSingleRequest(msg, req_id.clone(), None))
                     } else {
                         Some(RequestEvent::CustomConsensusRequest(msg, req_id.clone()))
                     }

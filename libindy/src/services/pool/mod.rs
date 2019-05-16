@@ -1,7 +1,7 @@
 extern crate byteorder;
 extern crate digest;
 extern crate hex;
-extern crate indy_crypto;
+extern crate ursa;
 extern crate rand;
 extern crate rmp_serde;
 extern crate rust_base58;
@@ -34,7 +34,6 @@ use errors::*;
 use services::pool::pool::{Pool, ZMQPool};
 use utils::environment;
 use utils::sequence;
-use std::u64;
 
 mod catchup;
 mod commander;
@@ -166,7 +165,7 @@ impl PoolService {
 
         self.pending_pools.try_borrow_mut()?
             .insert(new_pool.get_id(), ZMQPool::new(new_pool, send_cmd_sock));
-        return Ok(pool_handle);
+        Ok(pool_handle)
     }
 
     pub fn add_open_pool(&self, pool_id: i32) -> IndyResult<i32> {
@@ -266,7 +265,7 @@ impl PoolService {
 }
 
 lazy_static! {
-    static ref THRESHOLD: Mutex<u64> = Mutex::new(u64::MAX);
+    static ref THRESHOLD: Mutex<u64> = Mutex::new(600);
 }
 
 pub fn set_freshness_threshold(threshold: u64) {
@@ -628,7 +627,7 @@ mod tests {
 
         use super::*;
 
-        use self::indy_crypto::bls::{Generator, SignKey, VerKey};
+        use self::ursa::bls::{Generator, SignKey, VerKey};
 
         pub static POLL_TIMEOUT: i64 = 1_000; /* in ms */
 

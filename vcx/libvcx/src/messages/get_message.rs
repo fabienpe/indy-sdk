@@ -1,6 +1,7 @@
 use settings;
 use messages::*;
 use messages::message_type::MessageTypes;
+use messages::payload::Payloads;
 use utils::httpclient;
 use error::prelude::*;
 
@@ -246,11 +247,18 @@ pub struct DeliveryDetails {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(untagged)]
+pub enum MessagePayload {
+    V1(Vec<i8>),
+    V2(::serde_json::Value),
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Message {
     #[serde(rename = "statusCode")]
     pub status_code: MessageStatusCode,
-    pub payload: Option<Vec<i8>>,
+    pub payload: Option<MessagePayload>,
     #[serde(rename = "senderDID")]
     pub sender_did: String,
     pub uid: String,
@@ -269,10 +277,17 @@ impl Message {
         // TODO: must be Result
         let mut new_message = self.clone();
         if let Some(ref payload) = self.payload {
-            let payload = ::messages::to_u8(payload);
-            let payload = ::utils::libindy::crypto::parse_msg(&vk, &payload).unwrap_or((String::new(), Vec::new()));
-            let payload = ::rmp_serde::from_slice(&payload.1[..]).unwrap_or(json!(null)); 
-            new_message.decrypted_payload = ::serde_json::to_string(&payload).ok();
+            let payload = match payload {
+                MessagePayload::V1(payload) => Payloads::decrypt_payload_v1(&vk, &payload)
+                    .map(|payload| Payloads::PayloadV1(payload)),
+                MessagePayload::V2(payload) => Payloads::decrypt_payload_v2(&vk, &payload)
+                    .map(|payload| Payloads::PayloadV2(payload))
+            };
+
+            new_message.decrypted_payload = match payload {
+                Ok(payload) => ::serde_json::to_string(&payload).ok(),
+                _ => ::serde_json::to_string(&json!(null)).ok()
+            }
         }
         new_message.payload = None;
         new_message
@@ -296,7 +311,7 @@ pub fn get_connection_messages(pw_did: &str, pw_vk: &str, agent_did: &str, agent
     Ok(response)
 }
 
-pub fn get_ref_msg(msg_id: &str, pw_did: &str, pw_vk: &str, agent_did: &str, agent_vk: &str) -> VcxResult<(String, Vec<i8>)> {
+pub fn get_ref_msg(msg_id: &str, pw_did: &str, pw_vk: &str, agent_did: &str, agent_vk: &str) -> VcxResult<(String, MessagePayload)> {
     trace!("get_ref_msg >>> msg_id: {}, pw_did: {}, pw_vk: {}, agent_did: {}, agent_vk: {}",
            msg_id, pw_did, pw_vk, agent_did, agent_vk);
 
@@ -396,7 +411,7 @@ mod tests {
 
         let msg1 = Message {
             status_code: MessageStatusCode::Accepted,
-            payload: Some(vec![-9, 108, 97, 105, 109, 45, 100, 97, 116, 97]),
+            payload: Some(MessagePayload::V1(vec![-9, 108, 97, 105, 109, 45, 100, 97, 116, 97])),
             sender_did: "WVsWVh8nL96BE3T3qwaCd5".to_string(),
             uid: "mmi3yze".to_string(),
             msg_type: RemoteMessageType::ConnReq,
@@ -451,6 +466,7 @@ mod tests {
                                                                              1).unwrap();
         ::issuer_credential::send_credential_offer(credential_offer, alice).unwrap();
         thread::sleep(Duration::from_millis(2000));
+        let hello_uid = ::messages::send_message::send_generic_message(alice, "hello", &json!({"msg_type":"hello", "msg_title": "hello", "ref_msg_id": null}).to_string()).unwrap();
         // AS CONSUMER GET MESSAGES
         ::utils::devsetup::tests::set_consumer();
         let all_messages = download_messages(None, None, None).unwrap();
@@ -464,6 +480,8 @@ mod tests {
         // No pending will return empty list
         let empty = download_messages(None, Some(vec!["MS-103".to_string()]), Some(vec![accepted[0].msgs[0].uid.clone()])).unwrap();
         assert_eq!(empty.len(), 1);
+        let hello_msg = download_messages(None, None, Some(vec![hello_uid])).unwrap();
+        assert_eq!(hello_msg[0].msgs[0].decrypted_payload, Some("{\"@type\":{\"name\":\"hello\",\"ver\":\"1.0\",\"fmt\":\"json\"},\"@msg\":\"hello\"}".to_string()));
         // Agency returns a bad request response for invalid dids
         let invalid_did = "abc".to_string();
         let bad_req = download_messages(Some(vec![invalid_did]), None, None);
