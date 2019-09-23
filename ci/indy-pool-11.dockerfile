@@ -76,6 +76,48 @@ command=start_indy_node Node4 0.0.0.0 9707 0.0.0.0 9708\n\
 directory=/home/indy\n\
 stdout_logfile=/tmp/node4.log\n\
 stderr_logfile=/tmp/node4.log\n"\
+\n\
+[program:node5]\n\
+command=start_indy_node Node5 0.0.0.0 9709 0.0.0.0 9710\n\
+directory=/home/indy\n\
+stdout_logfile=/tmp/node5.log\n\
+stderr_logfile=/tmp/node5.log\n"\
+\n\
+[program:node6]\n\
+command=start_indy_node Node6 0.0.0.0 9711 0.0.0.0 9712\n\
+directory=/home/indy\n\
+stdout_logfile=/tmp/node6.log\n\
+stderr_logfile=/tmp/node6.log\n"\
+\n\
+[program:node7]\n\
+command=start_indy_node Node7 0.0.0.0 9713 0.0.0.0 9714\n\
+directory=/home/indy\n\
+stdout_logfile=/tmp/node7.log\n\
+stderr_logfile=/tmp/node7.log\n"\
+\n\
+[program:node8]\n\
+command=start_indy_node Node8 0.0.0.0 9715 0.0.0.0 9716\n\
+directory=/home/indy\n\
+stdout_logfile=/tmp/node8.log\n\
+stderr_logfile=/tmp/node8.log\n"\
+\n\
+[program:node9]\n\
+command=start_indy_node Node9 0.0.0.0 9717 0.0.0.0 9718\n\
+directory=/home/indy\n\
+stdout_logfile=/tmp/node9.log\n\
+stderr_logfile=/tmp/node9.log\n"\
+\n\
+[program:node10]\n\
+command=start_indy_node Node10 0.0.0.0 9719 0.0.0.0 9720\n\
+directory=/home/indy\n\
+stdout_logfile=/tmp/node10.log\n\
+stderr_logfile=/tmp/node10.log\n"\
+\n\
+[program:node11]\n\
+command=start_indy_node Node11 0.0.0.0 9721 0.0.0.0 9722\n\
+directory=/home/indy\n\
+stdout_logfile=/tmp/node11.log\n\
+stderr_logfile=/tmp/node11.log\n"\
 >> /etc/supervisord.conf
 
 USER indy
@@ -85,8 +127,7 @@ RUN mv /tmp/indy_config.py /etc/indy/indy_config.py
 
 ARG pool_ip=127.0.0.1
 
-RUN generate_indy_pool_transactions --nodes 4 --clients 5 --nodeNum 1 2 3 4 --ips="$pool_ip,$pool_ip,$pool_ip,$pool_ip"
+RUN generate_indy_pool_transactions --nodes 11 --clients 12 --nodeNum 1 2 3 4 5 6 7 8 9 10 11 --ips="$pool_ip,$pool_ip,$pool_ip,$pool_ip"
 
-EXPOSE 9701 9702 9703 9704 9705 9706 9707 9708
-
+EXPOSE 9701 9702 9703 9704 9705 9706 9707 9708 9709 9710 9711 9712 9713 9714 9715 9716 9717 9718 9719 9720 9721 9722
 CMD ["/usr/bin/supervisord"]
