@@ -1,3 +1,9 @@
+# Docker file that starts 4 Indy nodes
+#
+# Usage:
+# docker build --build-arg pool_ip=<IP_ADDRESS> -f ci/indy-pool.dockerfile -t indy_pool .
+# docker run -itd --name indy_pool -p <IP_ADDRESS>:9701-9708:9701-9708 indy_pool
+
 FROM ubuntu:16.04
 
 ARG uid=1000

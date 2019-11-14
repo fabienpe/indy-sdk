@@ -1,9 +1,17 @@
-# Docker file that starts 11 Indy nodes
+# Docker file that starts 4 Indy nodes and setup ports so that Toxiproxy can easily be
+# configured to work with them. Genesis file indicates note ports 9701, etc. but nodes
+# listen on 9801. Toxiproxy should forward between 9701 and 9801.
+#
+# Toxiproxy:
+#   https://github.com/shopify/toxiproxy
+#
+# Docker port configuration:
+#    https://docs.docker.com/engine/reference/run/
+#    https://codability.in/docker-networking-explained/
 #
 # Usage:
-# docker build --build-arg pool_ip=<IP_ADDRESS> -f ci/indy-pool-11.dockerfile -t indy_pool_11 .
-# docker run -itd --name indy_pool_11 -p <IP_ADDRESS>:9701-9722:9701-9722 indy_pool_11
-
+# docker build --build-arg pool_ip=<IP_ADDRESS> -f ci/indy-pool-proxy.dockerfile -t indy_pool_proxy .
+# docker run -itd --name indy_pool -p 9801:9801 -p 9803:9803 -p 9805:9805 -p 9807:9807 -p 9702:9702 -p 9704:9704 -p 9706:9706 -p 9708:9708 indy_pool
 
 FROM ubuntu:16.04
 
@@ -63,81 +71,40 @@ childlogdir = /tmp\n\
 strip_ansi = false\n\
 \n\
 [program:node1]\n\
-command=start_indy_node Node1 0.0.0.0 9701 0.0.0.0 9702\n\
+command=start_indy_node Node1 0.0.0.0 9801 0.0.0.0 9702\n\
 directory=/home/indy\n\
 stdout_logfile=/tmp/node1.log\n\
 stderr_logfile=/tmp/node1.log\n\
 \n\
 [program:node2]\n\
-command=start_indy_node Node2 0.0.0.0 9703 0.0.0.0 9704\n\
+command=start_indy_node Node2 0.0.0.0 9803 0.0.0.0 9704\n\
 directory=/home/indy\n\
 stdout_logfile=/tmp/node2.log\n\
 stderr_logfile=/tmp/node2.log\n\
 \n\
 [program:node3]\n\
-command=start_indy_node Node3 0.0.0.0 9705 0.0.0.0 9706\n\
+command=start_indy_node Node3 0.0.0.0 9805 0.0.0.0 9706\n\
 directory=/home/indy\n\
 stdout_logfile=/tmp/node3.log\n\
 stderr_logfile=/tmp/node3.log\n\
 \n\
 [program:node4]\n\
-command=start_indy_node Node4 0.0.0.0 9707 0.0.0.0 9708\n\
+command=start_indy_node Node4 0.0.0.0 9807 0.0.0.0 9708\n\
 directory=/home/indy\n\
 stdout_logfile=/tmp/node4.log\n\
-stderr_logfile=/tmp/node4.log\n\
-\n\
-[program:node5]\n\
-command=start_indy_node Node5 0.0.0.0 9709 0.0.0.0 9710\n\
-directory=/home/indy\n\
-stdout_logfile=/tmp/node5.log\n\
-stderr_logfile=/tmp/node5.log\n\
-\n\
-[program:node6]\n\
-command=start_indy_node Node6 0.0.0.0 9711 0.0.0.0 9712\n\
-directory=/home/indy\n\
-stdout_logfile=/tmp/node6.log\n\
-stderr_logfile=/tmp/node6.log\n\
-\n\
-[program:node7]\n\
-command=start_indy_node Node7 0.0.0.0 9713 0.0.0.0 9714\n\
-directory=/home/indy\n\
-stdout_logfile=/tmp/node7.log\n\
-stderr_logfile=/tmp/node7.log\n\
-\n\
-[program:node8]\n\
-command=start_indy_node Node8 0.0.0.0 9715 0.0.0.0 9716\n\
-directory=/home/indy\n\
-stdout_logfile=/tmp/node8.log\n\
-stderr_logfile=/tmp/node8.log\n\
-\n\
-[program:node9]\n\
-command=start_indy_node Node9 0.0.0.0 9717 0.0.0.0 9718\n\
-directory=/home/indy\n\
-stdout_logfile=/tmp/node9.log\n\
-stderr_logfile=/tmp/node9.log\n\
-\n\
-[program:node10]\n\
-command=start_indy_node Node10 0.0.0.0 9719 0.0.0.0 9720\n\
-directory=/home/indy\n\
-stdout_logfile=/tmp/node10.log\n\
-stderr_logfile=/tmp/node10.log\n\
-\n\
-[program:node11]\n\
-command=start_indy_node Node11 0.0.0.0 9721 0.0.0.0 9722\n\
-directory=/home/indy\n\
-stdout_logfile=/tmp/node11.log\n\
-stderr_logfile=/tmp/node11.log\n"\
+stderr_logfile=/tmp/node4.log\n"\
 >> /etc/supervisord.conf
 
 USER indy
 
 RUN awk '{if (index($1, "NETWORK_NAME") != 0) {print("NETWORK_NAME = \"sandbox\"")} else print($0)}' /etc/indy/indy_config.py> /tmp/indy_config.py
+RUN echo "\nlogLevel=20\n" >> /tmp/indy_config.py
 RUN mv /tmp/indy_config.py /etc/indy/indy_config.py
 
 ARG pool_ip=127.0.0.1
 
-RUN generate_indy_pool_transactions --nodes 11 --clients 12 --nodeNum 1 2 3 4 5 6 7 8 9 10 11 --ips="$pool_ip,$pool_ip,$pool_ip,$pool_ip,$pool_ip,$pool_ip,$pool_ip,$pool_ip,$pool_ip,$pool_ip,$pool_ip"
+RUN generate_indy_pool_transactions --nodes 4 --clients 5 --nodeNum 1 2 3 4 --ips="$pool_ip,$pool_ip,$pool_ip,$pool_ip"
 
-EXPOSE 9701 9702 9703 9704 9705 9706 9707 9708 9709 9710 9711 9712 9713 9714 9715 9716 9717 9718 9719 9720 9721 9722
+EXPOSE 9801 9702 9803 9704 9805 9706 9807 9708
 
 CMD ["/usr/bin/supervisord"]
