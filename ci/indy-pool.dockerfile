@@ -2,7 +2,7 @@
 #
 # Usage:
 # docker build --build-arg pool_ip=<IP_ADDRESS> -f ci/indy-pool.dockerfile -t indy_pool .
-# docker run -itd --name indy_pool -p <IP_ADDRESS>:9701-9708:9701-9708 indy_pool
+# docker run -itd --name indy_pool -p 9701-9708:9701-9708 indy_pool
 #
 # Checking ports:
 # docker port indy_pool
