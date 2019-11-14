@@ -11,7 +11,11 @@
 #
 # Usage:
 # docker build --build-arg pool_ip=<IP_ADDRESS> -f ci/indy-pool-proxy.dockerfile -t indy_pool_proxy .
-# docker run -itd --name indy_pool -p 9801:9801 -p 9803:9803 -p 9805:9805 -p 9807:9807 -p 9702:9702 -p 9704:9704 -p 9706:9706 -p 9708:9708 indy_pool
+# docker run -itd --name indy_pool -p 9801:9801 -p 9803:9803 -p 9805:9805 -p 9807:9807 -p 9702:9702 -p 9704:9704 -p 9706:9706 -p 9708:9708 indy_pool_proxy
+#
+# Checking ports:
+# docker port indy_pool
+# sudo netstat -tunlp  | grep docker-proxy
 
 FROM ubuntu:16.04
 
