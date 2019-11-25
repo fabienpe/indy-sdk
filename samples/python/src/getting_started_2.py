@@ -315,7 +315,7 @@ async def run():
         logger.info("------------------------------")
 
         logger.info("\"Faber\" -> Create \"Transcript\" Credential Offer for Alice")
-        faber['transcript_cred_offer_%s' % i] = \
+        faber_transcript_cred_offer = \
             await anoncreds.issuer_create_credential_offer(faber['wallet'], faber['transcript_cred_def_id'])
 
         logger.info("\"Faber\" -> Get key for Alice did")
@@ -324,38 +324,39 @@ async def run():
                 await did.key_for_did(faber['pool'], faber['wallet'], faber['alice_connection_response']['did'])
 
         logger.info("\"Faber\" -> Authcrypt \"Transcript\" Credential Offer for Alice")
-        faber['authcrypted_transcript_cred_offer_%s' % i] = \
+        faber_authcrypted_transcript_cred_offer = \
             await crypto.auth_crypt(faber['wallet'], faber['key_for_alice'], faber['alice_key_for_faber'],
-                                    faber['transcript_cred_offer_%s' % i].encode('utf-8'))
+                                    faber_transcript_cred_offer.encode('utf-8'))
 
         logger.info("\"Faber\" -> Send authcrypted \"Transcript\" Credential Offer to Alice")
-        alice['authcrypted_transcript_cred_offer_%s' % i] = faber['authcrypted_transcript_cred_offer_%s' % i]
+        alice_authcrypted_transcript_cred_offer = faber_authcrypted_transcript_cred_offer
 
         logger.info("\"Alice\" -> Authdecrypted \"Transcript\" Credential Offer from Faber")
-        alice['faber_key_for_alice'], alice['transcript_cred_offer_%s' % i], transcript_cred_offer = \
-            await auth_decrypt(alice['wallet'], alice['key_for_faber'], alice['authcrypted_transcript_cred_offer_%s' % i])
+        alice['faber_key_for_alice'], alice_transcript_cred_offer, transcript_cred_offer = \
+            await auth_decrypt(alice['wallet'], alice['key_for_faber'], alice_authcrypted_transcript_cred_offer)
 
         logger.info("\"Alice\" -> Get \"Faber Transcript\" Credential Definition from Ledger")
         (alice['faber_transcript_cred_def_id'], alice['faber_transcript_cred_def']) = \
             await get_cred_def(alice['pool'], alice['did_for_faber'], transcript_cred_offer['cred_def_id'])
 
         logger.info("\"Alice\" -> Create \"Transcript\" Credential Request for Faber")
-        (alice['transcript_cred_request_%s' % i], alice['transcript_cred_request_metadata_%s' % i]) = \
+        (alice_transcript_cred_request, alice_transcript_cred_request_metadata) = \
             await anoncreds.prover_create_credential_req(alice['wallet'], alice['did_for_faber'],
-                                                         alice['transcript_cred_offer_%s' % i],
+                                                         alice_transcript_cred_offer,
                                                          alice['faber_transcript_cred_def'], alice['master_secret_id'])
 
         logger.info("\"Alice\" -> Authcrypt \"Transcript\" Credential Request for Faber")
-        alice['authcrypted_transcript_cred_request_%s' % i] = \
+        alice_authcrypted_transcript_cred_request = \
             await crypto.auth_crypt(alice['wallet'], alice['key_for_faber'], alice['faber_key_for_alice'],
-                                    alice['transcript_cred_request_%s' % i].encode('utf-8'))
+                                    alice_transcript_cred_request.encode('utf-8'))
 
         logger.info("\"Alice\" -> Send authcrypted \"Transcript\" Credential Request to Faber")
-        faber['authcrypted_transcript_cred_request_%s' % i] = alice['authcrypted_transcript_cred_request_%s' % i]
+        faber_authcrypted_transcript_cred_request = \
+            alice_authcrypted_transcript_cred_request
 
         logger.info("\"Faber\" -> Authdecrypt \"Transcript\" Credential Request from Alice")
-        faber['alice_key_for_faber'], faber['transcript_cred_request_%s' % i], _ = \
-            await auth_decrypt(faber['wallet'], faber['key_for_alice'], faber['authcrypted_transcript_cred_request_%s' % i])
+        faber['alice_key_for_faber'], faber_transcript_cred_request, _ = \
+            await auth_decrypt(faber['wallet'], faber['key_for_alice'], faber_authcrypted_transcript_cred_request)
 
         logger.info("\"Faber\" -> Create \"Transcript\" Credential for Alice")
         faber['alice_transcript_cred_values'] = json.dumps({
@@ -367,11 +368,10 @@ async def run():
             "year": {"raw": "2015", "encoded": "2015"},
             "average": {"raw": "5", "encoded": "5"}
         })
-        faber['blob_storage_reader_cfg_handle'] = await blob_storage.open_reader('default', faber[
-            'tails_writer_config'])
-        faber['transcript_cred_%s' % i], faber['job_certificate_cred_rev_id'], faber['alice_cert_rev_reg_delta_%s' % i] = \
-            await anoncreds.issuer_create_credential(faber['wallet'], faber['transcript_cred_offer_%s' % i],
-                                                     faber['transcript_cred_request_%s' % i],
+        faber['blob_storage_reader_cfg_handle'] = await blob_storage.open_reader('default', faber['tails_writer_config'])
+        faber_transcript_cred, faber_transcript_cred_rev_id, faber_alice_cert_rev_reg_delta = \
+            await anoncreds.issuer_create_credential(faber['wallet'], faber_transcript_cred_offer,
+                                                     faber_transcript_cred_request,
                                                      faber['alice_transcript_cred_values'],
                                                      faber['revoc_reg_id'],
                                                      faber['blob_storage_reader_cfg_handle'])
@@ -379,20 +379,20 @@ async def run():
         logger.info("\"Faber\" -> Post Revocation Registry Delta to Ledger")
         faber['revoc_reg_entry_req'] = \
             await ledger.build_revoc_reg_entry_request(faber['did'], faber['revoc_reg_id'], 'CL_ACCUM',
-                                                       faber['alice_cert_rev_reg_delta_%s' % i])
+                                                       faber_alice_cert_rev_reg_delta)
         await ledger.sign_and_submit_request(faber['pool'], faber['wallet'], faber['did'], faber['revoc_reg_entry_req'])
 
         logger.info("\"Faber\" -> Authcrypt \"Transcript\" Credential for Alice")
-        faber['authcrypted_transcript_cred_%s' % i] = \
+        faber_authcrypted_transcript_cred = \
             await crypto.auth_crypt(faber['wallet'], faber['key_for_alice'], faber['alice_key_for_faber'],
-                                    faber['transcript_cred_%s' % i].encode('utf-8'))
+                                    faber_transcript_cred.encode('utf-8'))
 
         logger.info("\"Faber\" -> Send authcrypted \"Transcript\" Credential to Alice")
-        alice['authcrypted_transcript_cred_%s' % i] = faber['authcrypted_transcript_cred_%s' % i]
+        alice_authcrypted_transcript_cred = faber_authcrypted_transcript_cred
 
         logger.info("\"Alice\" -> Authdecrypted \"Transcript\" Credential from Faber")
-        _, alice['transcript_cred_%s' % i], alice_transcript_cred = \
-            await auth_decrypt(alice['wallet'], alice['key_for_faber'], alice['authcrypted_transcript_cred_%s' % i])
+        _, alice_transcript_cred_json, alice_transcript_cred = \
+            await auth_decrypt(alice['wallet'], alice['key_for_faber'], alice_authcrypted_transcript_cred)
 
         logger.info("\"Alice\" -> Gets RevocationRegistryDefinition for \"Transcript\" Credential from Faber")
         alice['faber_revoc_reg_des_req'] = \
@@ -403,11 +403,11 @@ async def run():
             await ledger.parse_get_revoc_reg_def_response(alice['faber_revoc_reg_des_resp'])
 
         logger.info("\"Alice\" -> Store \"Transcript\" Credential from Faber")
-        _, alice['transcript_cred_def_%s' % i] = await get_cred_def(alice['pool'], alice['did_for_faber'],
+        _, alice_transcript_cred_def = await get_cred_def(alice['pool'], alice['did_for_faber'],
                                                                     transcript_cred_offer['cred_def_id'])
 
-        await anoncreds.prover_store_credential(alice['wallet'], None, alice['transcript_cred_request_metadata_%s' % i],
-                                                alice['transcript_cred_%s' % i], alice['transcript_cred_def_%s' % i], alice['faber_revoc_reg_def_json'])
+        await anoncreds.prover_store_credential(alice['wallet'], None, alice_transcript_cred_request_metadata,
+                                                alice_transcript_cred_json, alice_transcript_cred_def, alice['faber_revoc_reg_def_json'])
 
     logger.info("==============================")
     logger.info("=== Apply for the job with Acme ==")
